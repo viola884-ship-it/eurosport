@@ -31,10 +31,9 @@ const STATUS_ICON: Record<string, string> = {
   confirmed: '\uD83D\uDCE6', processing: '\uD83D\uDD04',
   shipped: '\uD83D\uDE9A', completed: '\u2705', cancelled: '\u274C',
 };
-const MANAGER_ID = -5222379819;
-
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    const MANAGER_ID = parseInt(env.MANAGER_CHAT_ID) || 0;
     try {
       const url = new URL(request.url);
       if (url.pathname !== '/webhook') {
