@@ -6,11 +6,13 @@
 import type { Env, ActivityLogEntry } from '../types';
 import { createLogEntry, writeActivityLog } from '../lib/kv-schema';
 
+type LogAction = ActivityLogEntry['action'];
+
 export async function loggingMiddleware(
   request: Request,
   env: Env,
   options: {
-    action?: string;
+    action?: LogAction;
     targetType?: 'order' | 'customer' | 'api';
     targetId?: string;
     details?: Record<string, unknown>;
@@ -20,14 +22,14 @@ export async function loggingMiddleware(
   const sessionCookie = request.headers.get('Cookie') || '';
   const isManager = sessionCookie.includes('dashboard_session');
 
-  const actor = isManager ? 'manager' : 'api';
+  const actor: ActivityLogEntry['actor'] = isManager ? 'manager' : 'api';
 
   const entry = createLogEntry(
     actor,
-    (options.action as ActivityLogEntry['action']) || 'api_call',
-    options.targetType || 'api',
-    options.targetId || 'unknown',
-    options.details || {},
+    options.action ?? 'api_call',
+    options.targetType ?? 'api',
+    options.targetId ?? 'unknown',
+    options.details ?? {},
     ip
   );
 

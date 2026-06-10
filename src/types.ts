@@ -1,5 +1,3 @@
-import type { Context } from 'grammy';
-
 export interface Customer {
   id: number;
   telegram_id: number;
@@ -47,10 +45,14 @@ export const VALID_STATUSES: OrderStatus[] = [
   'new', 'confirmed', 'processing', 'shipped', 'completed', 'cancelled',
 ];
 
+// Per specs/001-telegram-order-bot/data-model.md §"Status Lifecycle":
+// Forward transitions are allowed, including skipping intermediate states. Any
+// non-terminal status can also transition to `cancelled`. `completed` and
+// `cancelled` are terminal.
 export const STATUS_LIFECYCLE: Record<OrderStatus, OrderStatus[]> = {
-  new: ['confirmed', 'cancelled'],
-  confirmed: ['processing', 'cancelled'],
-  processing: ['shipped', 'cancelled'],
+  new: ['confirmed', 'processing', 'shipped', 'completed', 'cancelled'],
+  confirmed: ['processing', 'shipped', 'completed', 'cancelled'],
+  processing: ['shipped', 'completed', 'cancelled'],
   shipped: ['completed', 'cancelled'],
   completed: [],
   cancelled: [],
@@ -61,5 +63,3 @@ export interface Env {
   MANAGER_CHAT_ID: string;
   BOT_TOKEN: string;
 }
-
-export type BotContext = Context;

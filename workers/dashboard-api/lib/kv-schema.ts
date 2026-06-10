@@ -3,16 +3,9 @@
  * Copied to workers/dashboard-api/lib/kv-schema.ts for build resolution
  */
 
-export interface ActivityLogEntry {
-  id: string;
-  timestamp: string;
-  actor: 'manager' | 'api' | 'system';
-  action: 'view_order' | 'update_status' | 'send_message' | 'api_call' | 'login' | 'logout';
-  target_type: 'order' | 'customer' | 'api';
-  target_id: string;
-  details: Record<string, unknown>;
-  ip_address?: string;
-}
+import type { ActivityLogEntry } from '../types';
+
+export type { ActivityLogEntry } from '../types';
 
 const LOG_KEY_PREFIX = 'log:';
 
@@ -37,34 +30,33 @@ export async function readActivityLogs(
 ): Promise<{ logs: ActivityLogEntry[]; total: number }> {
   const { action, actor, from, to, limit = 50, offset = 0 } = options;
 
-  const prefix = LOG_KEY_PREFIX;
-  const listResult = await env.ACTIVITY_LOGS.list({ prefix, limit: 1000 });
+  // CF KV's `list()` only returns keys, not values — so we fetch each value via `get()`.
+  // We cap the key list at 1000 to bound the N+1 read pattern; activity logs older than
+  // that won't appear (acceptable since the dashboard paginates anyway).
+  const listResult = await env.ACTIVITY_LOGS.list({ prefix: LOG_KEY_PREFIX, limit: 1000 });
 
-  let logs: ActivityLogEntry[] = listResult.keys
-    .map((key) => {
-      const value = listResult.values.find((v) => v.name === key.name);
-      return value ? (JSON.parse(value.value as string) as ActivityLogEntry) : null;
-    })
-    .filter((log): log is ActivityLogEntry => log !== null);
-
-  if (action) {
-    logs = logs.filter((log) => log.action === action);
-  }
-  if (actor) {
-    logs = logs.filter((log) => log.actor === actor);
-  }
-  if (from) {
-    logs = logs.filter((log) => log.timestamp >= from);
-  }
-  if (to) {
-    logs = logs.filter((log) => log.timestamp <= to);
+  const logs: ActivityLogEntry[] = [];
+  for (const key of listResult.keys) {
+    const raw = await env.ACTIVITY_LOGS.get(key.name);
+    if (!raw) continue;
+    try {
+      logs.push(JSON.parse(raw) as ActivityLogEntry);
+    } catch {
+      // skip corrupt entries
+    }
   }
 
-  logs.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+  let filtered = logs;
+  if (action) filtered = filtered.filter((log) => log.action === action);
+  if (actor) filtered = filtered.filter((log) => log.actor === actor);
+  if (from) filtered = filtered.filter((log) => log.timestamp >= from);
+  if (to) filtered = filtered.filter((log) => log.timestamp <= to);
+
+  filtered.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
 
   return {
-    logs: logs.slice(offset, offset + limit),
-    total: logs.length,
+    logs: filtered.slice(offset, offset + limit),
+    total: filtered.length,
   };
 }
 

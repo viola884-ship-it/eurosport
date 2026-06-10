@@ -106,24 +106,24 @@ export default {
       }
 
       if (path.match(/^\/orders\/[^/]+$/) && request.method === 'GET') {
-        const displayId = path.split('/')[2];
+        const displayId = path.split('/')[2] ?? '';
         return handleOrderDetail(request, displayId, env, HEADERS);
       }
 
       if (path.match(/^\/orders\/[^/]+\/status$/) && request.method === 'PATCH') {
-        const displayId = path.split('/')[2];
+        const displayId = path.split('/')[2] ?? '';
         return handleOrderStatus(displayId, request, env, HEADERS);
       }
 
       if (path.match(/^\/orders\/[^/]+\/message$/) && request.method === 'POST') {
-        const displayId = path.split('/')[2];
+        const displayId = path.split('/')[2] ?? '';
         return handleOrderMessage(displayId, request, env, HEADERS);
       }
 
-      if (path === '/customers' && request.method === 'GET') {
-        const customerId = url.searchParams.get('id');
-        if (!customerId) return jsonResponse({ error: 'Customer ID required' }, 400, HEADERS);
-        return handleCustomerDetail(request, parseInt(customerId, 10), env, HEADERS);
+      if (url.pathname.match(/^\/customers\/[^/]+$/) && request.method === 'GET') {
+        const customerId = parseInt(path.split('/')[2] ?? '', 10);
+        if (isNaN(customerId)) return jsonResponse({ error: 'Invalid customer id' }, 400, HEADERS);
+        return handleCustomerDetail(request, customerId, env, HEADERS);
       }
 
       if (path === '/activity-logs' && request.method === 'GET') {
@@ -194,12 +194,24 @@ async function handleOrderStatus(displayId: string, request: Request, env: Env, 
     console.error('Logging error:', e);
   }
 
-  const updated = await updateOrderStatus(env.DB, displayId, status);
-  if (!updated) {
+  const result = await updateOrderStatus(env.DB, displayId, status);
+  if (!result.order) {
     return jsonResponse({ error: 'Order not found' }, 404, headers);
   }
 
-  return jsonResponse({ success: true, notification_sent: false }, 200, headers);
+  // Notify the customer via Telegram (best-effort; failure does not fail the PATCH)
+  let notificationSent = false;
+  if (result.telegramId) {
+    try {
+      notificationSent = await sendTelegramStatusNotification(env, result.telegramId, displayId, status);
+    } catch (e) {
+      console.error('Telegram notification error:', e);
+    }
+  } else {
+    console.warn(`Cannot notify customer for order ${displayId}: no telegram_id on file`);
+  }
+
+  return jsonResponse({ success: true, order: result.order, notification_sent: notificationSent }, 200, headers);
 }
 
 async function handleOrderMessage(displayId: string, request: Request, env: Env, headers: Record<string, string>): Promise<Response> {
@@ -216,7 +228,36 @@ async function handleOrderMessage(displayId: string, request: Request, env: Env,
     console.error('Logging error:', e);
   }
 
-  return jsonResponse({ success: true, message_id: Date.now() }, 200, headers);
+  const order = await getOrderByDisplayId(env.DB, displayId);
+  if (!order) {
+    return jsonResponse({ error: 'Order not found' }, 404, headers);
+  }
+
+  const telegramId = order.customer?.telegram_id;
+  if (!telegramId) {
+    return jsonResponse({ error: 'Customer has no Telegram ID' }, 400, headers);
+  }
+
+  if (!env.TELEGRAM_BOT_TOKEN) {
+    return jsonResponse({ error: 'TELEGRAM_BOT_TOKEN secret is not set' }, 500, headers);
+  }
+
+  try {
+    const r = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: telegramId, text: message }),
+    });
+    const data = await r.json() as { ok: boolean; result?: { message_id: number } };
+    if (!data.ok || !data.result) {
+      console.error('Telegram sendMessage failed:', data);
+      return jsonResponse({ error: 'Telegram API rejected the message' }, 502, headers);
+    }
+    return jsonResponse({ success: true, message_id: data.result.message_id }, 200, headers);
+  } catch (e) {
+    console.error('handleOrderMessage fetch error:', e);
+    return jsonResponse({ error: 'Failed to reach Telegram API' }, 502, headers);
+  }
 }
 
 async function handleCustomerDetail(request: Request, customerId: number, env: Env, headers: Record<string, string>): Promise<Response> {
@@ -235,7 +276,7 @@ async function handleCustomerDetail(request: Request, customerId: number, env: E
   return jsonResponse({ customer, orders }, 200, headers);
 }
 
-async function handleActivityLogs(request: Request, env: Env, url: URL, headers: Record<string, string>): Promise<Response> {
+async function handleActivityLogs(_request: Request, env: Env, url: URL, headers: Record<string, string>): Promise<Response> {
   const action = url.searchParams.get('action') || undefined;
   const actor = url.searchParams.get('actor') || undefined;
   const from = url.searchParams.get('from') || undefined;
@@ -266,7 +307,7 @@ FROM orders o JOIN customers c ON o.customer_id = c.id`;
   bindings.push(options.limit, options.offset);
 
   const result = await db.prepare(query).bind(...bindings).all();
-  return result.results as OrderSummary[];
+  return result.results as unknown as OrderSummary[];
 }
 
 async function getOrdersCount(db: D1Database, options: { status?: string }): Promise<number> {
@@ -311,9 +352,78 @@ async function getOrderByDisplayId(db: D1Database, displayId: string): Promise<O
   };
 }
 
-async function updateOrderStatus(db: D1Database, displayId: string, status: string): Promise<boolean> {
-  const result = await db.prepare('UPDATE orders SET status = ?, updated_at = ? WHERE display_id = ?').bind(status, new Date().toISOString(), displayId).run();
-  return result.success;
+interface StatusUpdateResult {
+  order: OrderDetail | null;
+  telegramId: number | null;
+  previousStatus: string | null;
+}
+
+async function updateOrderStatus(db: D1Database, displayId: string, status: string): Promise<StatusUpdateResult> {
+  // 1. Read previous status + customer telegram_id before the UPDATE (needed for transition row + notification)
+  const prev = await db.prepare(
+    `SELECT o.id, o.status as previous_status, c.telegram_id
+     FROM orders o JOIN customers c ON o.customer_id = c.id
+     WHERE o.display_id = ?`,
+  ).bind(displayId).first<{ id: number; previous_status: string; telegram_id: number }>();
+
+  if (!prev) return { order: null, telegramId: null, previousStatus: null };
+
+  // 2. Apply the status change
+  const now = new Date().toISOString();
+  const updateResult = await db.prepare(
+    'UPDATE orders SET status = ?, updated_at = ? WHERE display_id = ?',
+  ).bind(status, now, displayId).run();
+
+  if (!updateResult.success) return { order: null, telegramId: null, previousStatus: null };
+
+  // 3. Record the transition so the dashboard's Status History stays in sync (FR-010 / SC-005)
+  await db.prepare(
+    `INSERT INTO status_transitions (order_id, from_status, to_status, changed_by, created_at)
+     VALUES (?, ?, ?, ?, ?)`,
+  ).bind(prev.id, prev.previous_status, status, 'manager', now).run();
+
+  // 4. Return the fresh order so the caller can include it in the response
+  const order = await getOrderByDisplayId(db, displayId);
+  return { order, telegramId: prev.telegram_id, previousStatus: prev.previous_status };
+}
+
+const STATUS_ICON: Record<string, string> = {
+  confirmed: '📦',
+  processing: '🔄',
+  shipped: '🚚',
+  completed: '✅',
+  cancelled: '❌',
+};
+
+/**
+ * Sends a status-change notification to the customer's Telegram chat.
+ * Returns true if the Telegram API acknowledged with `ok: true`, false otherwise.
+ * Returns false (not throws) if TELEGRAM_BOT_TOKEN is unset.
+ */
+async function sendTelegramStatusNotification(
+  env: Env,
+  telegramId: number,
+  displayId: string,
+  status: string,
+): Promise<boolean> {
+  if (!env.TELEGRAM_BOT_TOKEN) {
+    console.error('TELEGRAM_BOT_TOKEN secret is not set; cannot send notification');
+    return false;
+  }
+  const icon = STATUS_ICON[status] ?? '';
+  const text = `${icon} Order #${displayId} is now: ${status}`;
+  try {
+    const r = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: telegramId, text }),
+    });
+    const data = await r.json() as { ok: boolean };
+    return data.ok === true;
+  } catch (e) {
+    console.error('sendTelegramStatusNotification fetch error:', e);
+    return false;
+  }
 }
 
 async function getCustomerById(db: D1Database, customerId: number): Promise<Record<string, unknown> | null> {
@@ -322,7 +432,7 @@ async function getCustomerById(db: D1Database, customerId: number): Promise<Reco
 
 async function getOrdersByCustomer(db: D1Database, customerId: number): Promise<OrderSummary[]> {
   const result = await db.prepare('SELECT display_id, first_name as customer_name, username as customer_username, status, (SELECT COUNT(*) FROM order_items WHERE order_id = orders.id) as item_count, created_at FROM orders WHERE customer_id = ? ORDER BY created_at DESC').bind(customerId).all();
-  return result.results as OrderSummary[];
+  return result.results as unknown as OrderSummary[];
 }
 
 async function getActivityLogs(env: Env, options: { action?: string; actor?: string; from?: string; to?: string; limit: number; offset: number }): Promise<{ logs: unknown[]; total: number }> {

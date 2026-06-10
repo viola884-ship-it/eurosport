@@ -176,6 +176,10 @@ export function DashboardApp() {
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
     }
+    // Per spec 002 FR-005: minimum 2 characters required to trigger search.
+    // Empty string clears the filter (shows all orders). 1-char input is ignored
+    // so the user can finish typing before we fire an API call.
+    if (search.length > 0 && search.length < 2) return;
     debounceTimerRef.current = setTimeout(() => {
       setFilters(prev => ({ ...prev, search }));
       setPagination(prev => ({ ...prev, page: 1 }));

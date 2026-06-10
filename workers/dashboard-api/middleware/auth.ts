@@ -23,7 +23,7 @@ interface LockoutEntry {
 
 export async function authMiddleware(
   request: Request,
-  env: Env
+  _env: Env
 ): Promise<{ authorized: boolean; response?: Response }> {
   if (request.url.includes('/dashboard-api/login')) {
     return { authorized: true };
@@ -167,8 +167,14 @@ export async function validateCredentials(
   env: Env,
   password: string
 ): Promise<boolean> {
-  const storedPassword = env.DASHBOARD_PASSWORD || 'changeme';
-  return password === storedPassword;
+  // Refuse ALL logins when the secret is missing — never fall back to a default password
+  // (the previous `|| 'changeme'` fallback would silently accept the literal string "changeme"
+  // for any caller that guessed it, which is a critical exposure if the secret was ever unset).
+  if (!env.DASHBOARD_PASSWORD) {
+    console.error('DASHBOARD_PASSWORD secret is not set; refusing authentication. Set it with `wrangler secret put DASHBOARD_PASSWORD`.');
+    return false;
+  }
+  return password === env.DASHBOARD_PASSWORD;
 }
 
 export function getLoginIdentifier(request: Request): string {

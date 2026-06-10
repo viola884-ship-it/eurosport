@@ -12,5 +12,8 @@ database_id = "<create via: wrangler d1 create orders-db>"
 [vars]
 MANAGER_CHAT_ID = "<your-telegram-chat-id>"
 
-# Secrets (set via wrangler secret put BOT_TOKEN)
-# BOT_TOKEN = "<telegram-bot-token>"
+# Secrets (set via `wrangler secret put <NAME>` before deploying)
+# BOT_TOKEN                — Telegram bot token (botfather)
+# DASHBOARD_PASSWORD       — shared password for the dashboard login screen
+# TELEGRAM_BOT_TOKEN       — same bot token, used by the dashboard-api worker
+#                            for sending customer notifications on status changes

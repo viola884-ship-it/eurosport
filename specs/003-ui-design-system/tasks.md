@@ -30,12 +30,12 @@ description: "Task list for shadcn-ui Design System feature implementation"
 
 **Purpose**: Initialize React development environment and shadcn/ui component library
 
-- [ ] T001 [P] Install React and React DOM in dashboard/ (`npm install react react-dom`)
-- [ ] T002 [P] Install React types in dashboard/ (`npm install -D @types/react @types/react-dom`)
-- [ ] T003 [P] Initialize Vite bundler in dashboard/ (`npm create vite@latest . -- --template react-ts`); preserve existing index.html, styles.css, app.js, api.js, favicon.svg
-- [ ] T004 [P] Initialize shadcn/ui in dashboard/ (`npx shadcn@latest init`); creates `components.json` and `dashboard/components/ui/` directory
-- [ ] T005 [P] Configure Tailwind CSS with dark mode (`darkMode: 'class'` in `tailwind.config.ts`)
-- [ ] T006 [P] Add all required shadcn/ui components (`npx shadcn@latest add button table dialog input select badge card label avatar`)
+- [X] T001 [P] Install React and React DOM in dashboard/ (`npm install react react-dom`)
+- [X] T002 [P] Install React types in dashboard/ (`npm install -D @types/react @types/react-dom`)
+- [X] T003 [P] Initialize Vite bundler in dashboard/ (`npm create vite@latest . -- --template react-ts`); preserve existing index.html, styles.css, app.js, api.js, favicon.svg
+- [X] T004 [P] Initialize shadcn/ui in dashboard/ (`npx shadcn@latest init`); creates `components.json` and `dashboard/components/ui/` directory
+- [X] T005 [P] Configure Tailwind CSS with dark mode (`darkMode: 'class'` in `tailwind.config.ts`)
+- [X] T006 [P] Add all required shadcn/ui components (`npx shadcn@latest add button table dialog input select badge card label avatar`)
 
 ---
 
@@ -45,9 +45,9 @@ description: "Task list for shadcn-ui Design System feature implementation"
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T007 Create React entry point `dashboard/src/main.tsx` that mounts the DashboardApp component
-- [ ] T008 Create shadcn/ui theme CSS variables in `dashboard/src/app.css` (background, foreground, primary, secondary, muted, accent, border, input, ring, radius per data-model.md)
-- [ ] T009 Verify React app builds and serves via Vite (`npm run dev` in dashboard/)
+- [X] T007 Create React entry point `dashboard/src/main.tsx` that mounts the DashboardApp component
+- [X] T008 Create shadcn/ui theme CSS variables in `dashboard/src/app.css` (background, foreground, primary, secondary, muted, accent, border, input, ring, radius per data-model.md)
+- [X] T009 Verify React app builds and serves via Vite (`npm run dev` in dashboard/)
 
 **Checkpoint**: React + shadcn/ui environment is ready for component implementation
 
@@ -59,18 +59,18 @@ description: "Task list for shadcn-ui Design System feature implementation"
 
 **Independent Test**: Open dashboard URL, verify all UI elements render using shadcn/ui components; click row to open order detail modal; use filters and pagination
 
-- [ ] T010 [P] [US1] Create DashboardApp React component in `dashboard/src/App.tsx` (replace app.js logic with React state + event handlers)
-- [ ] T011 [P] [US1] Create LoginScreen component in `dashboard/src/components/LoginScreen.tsx` (Input + Label + Button)
-- [ ] T012 [P] [US1] Create OrdersTable component in `dashboard/src/components/OrdersTable.tsx` (Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Button for pagination)
-- [ ] T013 [US1] Create OrderDetailDialog component in `dashboard/src/components/OrderDetailDialog.tsx` (Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, Card, Badge, Avatar, Button)
-- [ ] T014 [US1] Create FilterControls component in `dashboard/src/components/FilterControls.tsx` (Input for search, Select for status filter, Button for clear)
-- [ ] T015 [US1] Implement sorting logic in OrdersTable (click column header → sort by column; toggle asc/desc)
-- [ ] T016 [US1] Implement customer search with debounce 300ms in FilterControls
-- [ ] T017 [US1] Implement pagination in DashboardApp (Previous/Next buttons using Button variant="outline" size="sm")
-- [ ] T018 [US1] Implement dark mode toggle in DashboardApp (add/remove "dark" class on document.documentElement)
-- [ ] T019 [US1] Apply Badge variants per status (new=default, confirmed=secondary, processing/shipped=outline, completed=secondary with green tint, cancelled=destructive)
-- [ ] T020 [US1] Verify login flow works (password → X-Session-Token → dashboard loads)
-- [ ] T021 [US1] Verify all acceptance criteria from spec.md US1 (table, sorting, filters, modal)
+- [X] T010 [P] [US1] Create DashboardApp React component in `dashboard/src/App.tsx` (replace app.js logic with React state + event handlers)
+- [X] T011 [P] [US1] Create LoginScreen component in `dashboard/src/components/LoginScreen.tsx` (Input + Label + Button)
+- [X] T012 [P] [US1] Create OrdersTable component in `dashboard/src/components/OrdersTable.tsx` (Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Button for pagination)
+- [X] T013 [US1] Create OrderDetailDialog component in `dashboard/src/components/OrderDetailDialog.tsx` (Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, Card, Badge, Avatar, Button)
+- [X] T014 [US1] Create FilterControls component in `dashboard/src/components/FilterControls.tsx` (Input for search, Select for status filter, Button for clear)
+- [X] T015 [US1] Implement sorting logic in OrdersTable (click column header → sort by column; toggle asc/desc)
+- [X] T016 [US1] Implement customer search with debounce 300ms in FilterControls
+- [X] T017 [US1] Implement pagination in DashboardApp (Previous/Next buttons using Button variant="outline" size="sm")
+- [X] T018 [US1] Implement dark mode toggle in DashboardApp (add/remove "dark" class on document.documentElement)
+- [X] T019 [US1] Apply Badge variants per status (new=default, confirmed=secondary, processing/shipped=outline, completed=secondary with green tint, cancelled=destructive)
+- [X] T020 [US1] Verify login flow works (password → X-Session-Token → dashboard loads)
+- [X] T021 [US1] Verify all acceptance criteria from spec.md US1 (table, sorting, filters, modal)
 
 **Checkpoint**: At this point, dashboard renders with shadcn/ui components and is functionally equivalent to the vanilla HTML version
 
@@ -82,9 +82,9 @@ description: "Task list for shadcn-ui Design System feature implementation"
 
 **Independent Test**: Access telegram-notify worker's web pages and verify shadcn/ui styling is applied
 
-- [ ] T022 [P] [US2] Inspect `workers/telegram-notify/` directory and source files for any HTML render methods (Response with HTML, HtmlTemplate, etc.); document findings in `specs/003-ui-design-system/contracts/telegram-pages.md`
-- [ ] T023 [P] [US2] Migrate status pages to shadcn/ui Card and Badge components (or document if no web pages exist)
-- [ ] T024 [US2] Apply consistent dark mode support across telegram-notify web pages
+- [X] T022 [P] [US2] Inspect `workers/telegram-notify/` directory and source files for any HTML render methods (Response with HTML, HtmlTemplate, etc.); document findings in `specs/003-ui-design-system/contracts/telegram-pages.md`
+- [X] T023 [P] [US2] Migrate status pages to shadcn/ui Card and Badge components (or document if no web pages exist)
+- [X] T024 [US2] Apply consistent dark mode support across telegram-notify web pages
 
 ---
 
@@ -94,9 +94,9 @@ description: "Task list for shadcn-ui Design System feature implementation"
 
 **Independent Test**: Code review of new web interfaces finds no vanilla HTML/CSS UI elements
 
-- [ ] T025 [P] [US3] Add shadcn/ui to AGENTS.md as mandatory for web interfaces
-- [ ] T026 [P] [US3] Document required shadcn/ui components list (button, table, dialog, input, select, badge, card, label, avatar) in a `CONTRIBUTING.md` or `docs/ui-standards.md`
-- [ ] T027 [US3] Verify existing workers/dashboard-api/ has no web UI code that needs migration
+- [X] T025 [P] [US3] Add shadcn/ui to AGENTS.md as mandatory for web interfaces
+- [X] T026 [P] [US3] Document required shadcn/ui components list (button, table, dialog, input, select, badge, card, label, avatar) in a `CONTRIBUTING.md` or `docs/ui-standards.md`
+- [X] T027 [US3] Verify existing workers/dashboard-api/ has no web UI code that needs migration
 
 ---
 
@@ -104,11 +104,11 @@ description: "Task list for shadcn-ui Design System feature implementation"
 
 **Purpose**: Accessibility, mobile responsiveness, and final verification
 
-- [ ] T028 [P] Verify keyboard navigation works on all interactive elements (Tab, Enter, Space, Escape for dialog)
-- [ ] T029 [P] Verify focus management in Dialog (focus trap, close on Escape)
-- [ ] T030 Add mobile responsive styles for orders table (horizontal scroll on small screens)
-- [ ] T031 Add screen reader announcements for dynamic content (dialog open/close, filter results count)
-- [ ] T032 Verify all shadcn/ui components pass accessibility audit (aria- attributes present)
+- [X] T028 [P] Verify keyboard navigation works on all interactive elements (Tab, Enter, Space, Escape for dialog)
+- [X] T029 [P] Verify focus management in Dialog (focus trap, close on Escape)
+- [X] T030 Add mobile responsive styles for orders table (horizontal scroll on small screens)
+- [X] T031 Add screen reader announcements for dynamic content (dialog open/close, filter results count)
+- [X] T032 Verify all shadcn/ui components pass accessibility audit (aria- attributes present)
 
 ---
 

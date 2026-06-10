@@ -19,10 +19,13 @@ async function send(token: string, chatId: number, text: string) {
 }
 
 const VALID_STATUSES = ['new', 'confirmed', 'processing', 'shipped', 'completed', 'cancelled'];
+// Per specs/001-telegram-order-bot/data-model.md §"Status Lifecycle":
+// "Transitions forward through the pipeline; skipping intermediate states is allowed."
+// `completed` and `cancelled` are terminal — no outgoing transitions.
 const ALLOWED_NEXT: Record<string, string[]> = {
-  new: ['confirmed', 'cancelled'],
-  confirmed: ['processing', 'cancelled'],
-  processing: ['shipped', 'cancelled'],
+  new: ['confirmed', 'processing', 'shipped', 'completed', 'cancelled'],
+  confirmed: ['processing', 'shipped', 'completed', 'cancelled'],
+  processing: ['shipped', 'completed', 'cancelled'],
   shipped: ['completed', 'cancelled'],
   completed: [],
   cancelled: [],
@@ -73,11 +76,15 @@ export default {
             : await q.getOrders();
           if (orders.length === 0) {
             await send(token, chatId, 'No orders found.');
-          } else {
-            const lines = orders.map(o => ` #${o.display_id} ${o.status}`);
-            await send(token, chatId, `Orders:\n${lines.join('\n')}`);
-            await send(token, chatId, 'Use /customer &lt;order-id&gt; to view details.');
+            return new Response('OK', { status: 200 });
           }
+          const lines: string[] = [];
+          for (const o of orders) {
+            const items = await q.getOrderItems(o.id);
+            lines.push(` #${o.display_id} ${o.status} — ${items.length} item(s)`);
+          }
+          await send(token, chatId, `Orders:\n${lines.join('\n')}`);
+          await send(token, chatId, 'Use /customer &lt;order-id&gt; to view details.');
           return new Response('OK', { status: 200 });
         }
 

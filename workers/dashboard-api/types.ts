@@ -6,6 +6,9 @@ export interface Env {
   DB: D1Database;
   ACTIVITY_LOGS: KVNamespace;
   ASSETS: { fetch: (request: Request) => Promise<Response> };
+  // Secrets — set via `wrangler secret put <NAME>` in Cloudflare.
+  DASHBOARD_PASSWORD?: string;
+  TELEGRAM_BOT_TOKEN?: string;
 }
 
 export interface OrderSummary {
@@ -41,11 +44,19 @@ export interface OrderDetail {
   }>;
 }
 
+export type ActivityAction =
+  | 'view_order'
+  | 'update_status'
+  | 'send_message'
+  | 'api_call'
+  | 'login'
+  | 'logout';
+
 export interface ActivityLogEntry {
   id: string;
   timestamp: string;
   actor: 'manager' | 'api' | 'system';
-  action: string;
+  action: ActivityAction;
   target_type: 'order' | 'customer' | 'api';
   target_id: string;
   details: Record<string, unknown>;
