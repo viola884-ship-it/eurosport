@@ -50,7 +50,10 @@ export default {
 
       const chatId = msg.chat.id as number;
       const fromId = msg.from.id as number;
-      const text = msg.text as string;
+      // Per spec §spec.md:88: "Bot processes the first 4000 characters of the message;
+      // longer input is truncated." Telegram's own hard cap is 4096, so 4000 leaves a
+      // small safety margin and matches the spec verbatim.
+      const text = (msg.text as string).slice(0, 4000);
       const q = new OrderQueries(env.DB);
       const token = env.BOT_TOKEN;
 
@@ -110,11 +113,13 @@ export default {
           return new Response('OK', { status: 200 });
         }
 
-        // /update <display_id> <new_status>
+        // /update <display_id> <new_status> [reason...]
+        // Per contracts/bot-api.md: cancellation notifications may include a custom
+        // reason (e.g. "out of stock"). Everything after the status token is the reason.
         if (cmdName === '/update') {
-          const [displayId, newStatus] = args;
+          const [displayId, newStatus, ...reasonParts] = args;
           if (!displayId || !newStatus) {
-            await send(token, chatId, 'Usage: /update &lt;order-id&gt; &lt;new-status&gt;');
+            await send(token, chatId, 'Usage: /update &lt;order-id&gt; &lt;new-status&gt; [reason]');
             return new Response('OK', { status: 200 });
           }
           if (!VALID_STATUSES.includes(newStatus)) {
@@ -137,7 +142,10 @@ export default {
           const customer = await q.getCustomerById(order.customer_id);
           if (customer) {
             const icon = STATUS_ICON[newStatus] ?? '';
-            const reason = newStatus === 'cancelled' ? ' Reason: cancelled by manager.' : '';
+            const customReason = reasonParts.join(' ').trim();
+            const reason = newStatus === 'cancelled'
+              ? ` Reason: ${customReason || 'cancelled by manager'}.`
+              : '';
             await send(token, customer.telegram_id, `${icon} Order #${displayId} is now: ${newStatus}${reason}`);
           }
           return new Response('OK', { status: 200 });

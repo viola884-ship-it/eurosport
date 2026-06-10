@@ -31,7 +31,7 @@ export default {
       return new Response(null, { status: 204, headers: CORS_HEADERS });
     }
 
-    const rateResult = rateLimit(getClientIdentifier(request));
+    const rateResult = await rateLimit(env, getClientIdentifier(request));
     if (!rateResult.allowed) {
       return jsonResponse({ error: 'Rate limit exceeded' }, 429, HEADERS);
     }

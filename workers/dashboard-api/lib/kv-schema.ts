@@ -1,6 +1,7 @@
 /**
- * KV Schema and Activity Log Helper Functions
- * Copied to workers/dashboard-api/lib/kv-schema.ts for build resolution
+ * KV Activity Log Helper Functions
+ * Writes structured entries to the ACTIVITY_LOGS KV namespace and reads them
+ * back for the dashboard. Key shape: `log:<iso-timestamp>:<uuid>`.
  */
 
 import type { ActivityLogEntry } from '../types';
